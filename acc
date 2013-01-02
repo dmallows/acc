@@ -1,0 +1,52 @@
+#! /usr/bin/python3
+
+import acclib as acc
+import argparse
+import git
+
+def init_main(opts):
+    assert not acc.is_account()
+    acc.mk_account()
+
+def filter_main(opts):
+    in_src = acc.read_account(opts.src_account)
+    match, nomatch = acc.partition_account_on_name(in_src, opts.regex)
+
+    if opts.dst_account:
+        in_dst = acc.read_account(opts.dst_account)
+
+        out_src = nomatch
+        print(out_src)
+        out_dst = acc.merge_accounts(match, in_dst)
+
+
+        acc.write_account(out_dst, opts.dst_account)
+        acc.write_account(out_src, opts.src_account)
+
+        git.add(opts.src_account, opts.dst_account)
+        git.commit('/{}/ ({}) -> ({})'.format(opts.regex, opts.src_account,
+                                              opts.dst_account))
+    else:
+        for i in map(acc.show_account_line, match):
+            print(i)
+
+
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(prog='acc')
+    subparsers = parser.add_subparsers(help='sub-command help')
+
+    init_p = subparsers.add_parser('init', help='Create a new acc repo')
+    init_p.set_defaults(func=init_main)
+
+    filter_p = subparsers.add_parser('filter', help='Filter transactions')
+    filter_p.set_defaults(func=filter_main)
+    filter_p.add_argument('src_account')
+    filter_p.add_argument('-d', dest='dst_account',
+                          help='destination account')
+    filter_p.add_argument('regex', nargs='?', default='$')
+
+    opts = parser.parse_args()
+    opts.func(opts)
+
